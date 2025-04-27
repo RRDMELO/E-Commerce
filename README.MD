@@ -1,5 +1,7 @@
 # Projeto Base: Refinando um Projeto Conceitual de Banco de Dados – E-COMMERCE
 
+![E-Commerce](E-Commerce.png)
+
 ## SQL
 
 ### Explicação do Modelo de Banco de Dados
