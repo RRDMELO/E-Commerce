@@ -272,4 +272,84 @@ ENGINE = InnoDB;
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
+```
+
+### Exemplos de Consultas SQL
+
+#### 1. Recuperações Simples com SELECT Statement
+
+**Exemplo:** Listar todos os clientes cadastrados.
+```sql
+SELECT * FROM Cliente;
+```
+
+#### 2. Filtros com WHERE Statement
+
+**Exemplo:** Listar pedidos com frete maior que 50.
+```sql
+SELECT * FROM Pedido WHERE Frete > 50;
+```
+
+#### 3. Atributos Derivados
+
+**Exemplo:** Calcular o valor total de cada pedido (considerando o frete).
+```sql
+SELECT idPedido, (Frete + SUM(Produto.Valor)) AS ValorTotal
+FROM Pedido
+JOIN `Relação de Produto/pedido` ON Pedido.idPedido = `Relação de Produto/pedido`.Pedido_idPedido
+JOIN Produto ON `Relação de Produto/pedido`.Produto_idProduto = Produto.idProduto
+GROUP BY idPedido;
+```
+
+#### 4. Ordenação dos Dados com ORDER BY
+
+**Exemplo:** Listar produtos ordenados pelo valor em ordem decrescente.
+```sql
+SELECT * FROM Produto ORDER BY Valor DESC;
+```
+
+#### 5. Condições de Filtros aos Grupos – HAVING Statement
+
+**Exemplo:** Listar clientes que possuem mais de 2 pedidos.
+```sql
+SELECT Cliente_idCliente, COUNT(*) AS TotalPedidos
+FROM Pedido
+GROUP BY Cliente_idCliente
+HAVING COUNT(*) > 2;
+```
+
+#### 6. Junções entre Tabelas
+
+**Exemplo 1:** Quantos pedidos foram feitos por cada cliente?
+```sql
+SELECT Cliente.Nome, COUNT(Pedido.idPedido) AS TotalPedidos
+FROM Cliente
+JOIN Pedido ON Cliente.idCliente = Pedido.Cliente_idCliente
+GROUP BY Cliente.idCliente;
+```
+
+**Exemplo 2:** Algum vendedor também é fornecedor?
+```sql
+SELECT `Terceiro - Vendedor`.RazãoSocial AS Vendedor, Fornecedor.RazãoSocial AS Fornecedor
+FROM `Terceiro - Vendedor`
+JOIN Fornecedor ON `Terceiro - Vendedor`.RazãoSocial = Fornecedor.RazãoSocial;
+```
+
+**Exemplo 3:** Relação de produtos, fornecedores e estoques.
+```sql
+SELECT Produto.Descrição AS Produto, Fornecedor.RazãoSocial AS Fornecedor, Estoque.Local AS Estoque
+FROM Produto
+JOIN `Disponibilizando um produto` ON Produto.idProduto = `Disponibilizando um produto`.Produto_idProduto
+JOIN Fornecedor ON `Disponibilizando um produto`.Fornecedor_idFornecedor = Fornecedor.idFornecedor
+JOIN `Estoque_has_Produto` ON Produto.idProduto = `Estoque_has_Produto`.Produto_idProduto
+JOIN Estoque ON `Estoque_has_Produto`.Estoque_idEstoque = Estoque.idEstoque;
+```
+
+**Exemplo 4:** Relação de nomes dos fornecedores e nomes dos produtos.
+```sql
+SELECT Fornecedor.RazãoSocial AS Fornecedor, Produto.Descrição AS Produto
+FROM Fornecedor
+JOIN `Disponibilizando um produto` ON Fornecedor.idFornecedor = `Disponibilizando um produto`.Fornecedor_idFornecedor
+JOIN Produto ON `Disponibilizando um produto`.Produto_idProduto = Produto.idProduto;
+```
 
