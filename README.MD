@@ -274,6 +274,31 @@ SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
 ```
 
+### Criação de Índices e Justificativas
+
+#### Índices Criados
+
+1. **Índice para a Tabela `Cliente`**
+   ```sql
+   ALTER TABLE Cliente ADD INDEX idx_Nome(Nome);
+   -- Justificativa: O índice foi criado na coluna `Nome` para otimizar consultas que busquem clientes pelo nome, 
+   -- uma operação comum em sistemas de e-commerce.
+   ```
+
+2. **Índice para a Tabela `Pedido`**
+   ```sql
+   CREATE INDEX idx_StatusPedido ON Pedido(`Status do Pedido`);
+   -- Justificativa: O índice foi criado na coluna `Status do Pedido` para acelerar consultas que filtram pedidos 
+   -- por status, como "entregue" ou "preparando".
+   ```
+
+3. **Índice para a Tabela `Produto`**
+   ```sql
+   CREATE INDEX idx_Categoria ON Produto(Categoria);
+   -- Justificativa: O índice foi criado na coluna `Categoria` para melhorar a performance de consultas que agrupam 
+   -- ou filtram produtos por categoria.
+   ```
+
 ### Exemplos de Consultas SQL
 
 #### 1. Recuperações Simples com SELECT Statement
@@ -351,5 +376,72 @@ SELECT Fornecedor.RazãoSocial AS Fornecedor, Produto.Descrição AS Produto
 FROM Fornecedor
 JOIN `Disponibilizando um produto` ON Fornecedor.idFornecedor = `Disponibilizando um produto`.Fornecedor_idFornecedor
 JOIN Produto ON `Disponibilizando um produto`.Produto_idProduto = Produto.idProduto;
+```
+
+#### Consultas Adicionais
+
+1. **Qual o departamento com maior número de pessoas?**
+   ```sql
+   SELECT Departamento, COUNT(*) AS TotalPessoas
+   FROM Empregado
+   GROUP BY Departamento
+   ORDER BY TotalPessoas DESC
+   LIMIT 1;
+   ```
+
+2. **Quais são os departamentos por cidade?**
+   ```sql
+   SELECT Departamento, Cidade, COUNT(*) AS TotalEmpregados
+   FROM Empregado
+   GROUP BY Departamento, Cidade;
+   ```
+
+3. **Relação de empregados por departamento**
+   ```sql
+   SELECT Departamento, Nome AS Empregado
+   FROM Empregado
+   ORDER BY Departamento, Nome;
+   ```
+
+### Procedure para Manipulação de Dados
+
+#### Script da Procedure
+```sql
+DELIMITER //
+CREATE PROCEDURE ManipularDados (
+    IN Acao INT,
+    IN Tabela VARCHAR(50),
+    IN Coluna VARCHAR(50),
+    IN Valor VARCHAR(255),
+    IN Condicao VARCHAR(255)
+)
+BEGIN
+    CASE Acao
+        WHEN 1 THEN
+            SET @query = CONCAT('SELECT * FROM ', Tabela, ' WHERE ', Coluna, ' = "', Valor, '"');
+        WHEN 2 THEN
+            SET @query = CONCAT('UPDATE ', Tabela, ' SET ', Coluna, ' = "', Valor, '" WHERE ', Condicao);
+        WHEN 3 THEN
+            SET @query = CONCAT('DELETE FROM ', Tabela, ' WHERE ', Condicao);
+        ELSE
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Ação inválida';
+    END CASE;
+    PREPARE stmt FROM @query;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+END //
+DELIMITER ;
+```
+
+#### Chamada da Procedure
+```sql
+-- Exemplo de chamada para selecionar dados
+CALL ManipularDados(1, 'Cliente', 'Nome', 'João', '');
+
+-- Exemplo de chamada para atualizar dados
+CALL ManipularDados(2, 'Cliente', 'Nome', 'João Silva', 'idCliente = 1');
+
+-- Exemplo de chamada para deletar dados
+CALL ManipularDados(3, 'Cliente', '', '', 'idCliente = 1');
 ```
 
