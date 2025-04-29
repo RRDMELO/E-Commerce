@@ -403,6 +403,112 @@ JOIN Produto ON `Disponibilizando um produto`.Produto_idProduto = Produto.idProd
    ORDER BY Departamento, Nome;
    ```
 
+### Personalizando Acessos com Views
+
+#### Criação de Views
+
+1. **Número de empregados por departamento e localidade**
+   ```sql
+   CREATE VIEW EmpregadosPorDepartamentoLocalidade AS
+   SELECT Departamento, Localidade, COUNT(*) AS TotalEmpregados
+   FROM Empregado
+   GROUP BY Departamento, Localidade;
+   ```
+
+2. **Lista de departamentos e seus gerentes**
+   ```sql
+   CREATE VIEW DepartamentosGerentes AS
+   SELECT Departamento.Nome AS Departamento, Empregado.Nome AS Gerente
+   FROM Departamento
+   JOIN Empregado ON Departamento.GerenteID = Empregado.ID;
+   ```
+
+3. **Projetos com maior número de empregados**
+   ```sql
+   CREATE VIEW ProjetosComMaisEmpregados AS
+   SELECT Projeto.Nome AS Projeto, COUNT(Empregado.ID) AS TotalEmpregados
+   FROM Projeto
+   JOIN EmpregadoProjeto ON Projeto.ID = EmpregadoProjeto.ProjetoID
+   JOIN Empregado ON EmpregadoProjeto.EmpregadoID = Empregado.ID
+   GROUP BY Projeto.Nome
+   ORDER BY TotalEmpregados DESC;
+   ```
+
+4. **Lista de projetos, departamentos e gerentes**
+   ```sql
+   CREATE VIEW ProjetosDepartamentosGerentes AS
+   SELECT Projeto.Nome AS Projeto, Departamento.Nome AS Departamento, Empregado.Nome AS Gerente
+   FROM Projeto
+   JOIN Departamento ON Projeto.DepartamentoID = Departamento.ID
+   JOIN Empregado ON Departamento.GerenteID = Empregado.ID;
+   ```
+
+5. **Quais empregados possuem dependentes e se são gerentes**
+   ```sql
+   CREATE VIEW EmpregadosComDependentes AS
+   SELECT Empregado.Nome AS Empregado, Empregado.Gerente AS EhGerente, COUNT(Dependente.ID) AS TotalDependentes
+   FROM Empregado
+   LEFT JOIN Dependente ON Empregado.ID = Dependente.EmpregadoID
+   GROUP BY Empregado.Nome, Empregado.Gerente;
+   ```
+
+#### Definição de Permissões de Acesso
+
+1. **Criação de Usuário Gerente**
+   ```sql
+   CREATE USER 'gerente'@'localhost' IDENTIFIED BY 'senha_gerente';
+   GRANT SELECT ON mydb.Empregado TO 'gerente'@'localhost';
+   GRANT SELECT ON mydb.Departamento TO 'gerente'@'localhost';
+   ```
+
+2. **Criação de Usuário Empregado**
+   ```sql
+   CREATE USER 'empregado'@'localhost' IDENTIFIED BY 'senha_empregado';
+   GRANT SELECT ON mydb.Empregado TO 'empregado'@'localhost';
+   REVOKE SELECT ON mydb.Departamento FROM 'empregado'@'localhost';
+   ```
+
+### Criando Gatilhos para Cenário de E-commerce
+
+#### Triggers de Remoção: Before Delete
+
+1. **Gatilho para manter histórico de usuários excluídos**
+   ```sql
+   CREATE TRIGGER BeforeDeleteUsuario
+   BEFORE DELETE ON Usuario
+   FOR EACH ROW
+   BEGIN
+       INSERT INTO HistoricoUsuarios (ID, Nome, Email, DataExclusao)
+       VALUES (OLD.ID, OLD.Nome, OLD.Email, NOW());
+   END;
+   ```
+
+#### Triggers de Atualização: Before Update
+
+1. **Gatilho para atualização de salário base**
+   ```sql
+   CREATE TRIGGER BeforeUpdateSalario
+   BEFORE UPDATE ON Empregado
+   FOR EACH ROW
+   BEGIN
+       IF NEW.SalarioBase <> OLD.SalarioBase THEN
+           INSERT INTO HistoricoSalarios (EmpregadoID, SalarioAntigo, SalarioNovo, DataAtualizacao)
+           VALUES (OLD.ID, OLD.SalarioBase, NEW.SalarioBase, NOW());
+       END IF;
+   END;
+   ```
+
+2. **Gatilho para inserção de novos colaboradores**
+   ```sql
+   CREATE TRIGGER AfterInsertEmpregado
+   AFTER INSERT ON Empregado
+   FOR EACH ROW
+   BEGIN
+       INSERT INTO LogEmpregados (EmpregadoID, Nome, DataInsercao)
+       VALUES (NEW.ID, NEW.Nome, NOW());
+   END;
+   ```
+
 ### Procedure para Manipulação de Dados
 
 #### Script da Procedure
