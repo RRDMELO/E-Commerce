@@ -551,3 +551,167 @@ CALL ManipularDados(2, 'Cliente', 'Nome', 'João Silva', 'idCliente = 1');
 CALL ManipularDados(3, 'Cliente', '', '', 'idCliente = 1');
 ```
 
+## Soluções dos Desafios
+
+### PARTE 1 – TRANSAÇÕES
+
+#### Solução para Transação Manual
+
+A seguir é apresentada uma solução para manipulação de dados usando transações no MySQL sem o uso de procedures:
+
+```sql
+-- Desabilitar o autocommit
+SET autocommit = 0;
+
+-- Iniciar a transação
+START TRANSACTION;
+
+-- Inserir um novo produto
+INSERT INTO `mydb`.`Produto` (`idProduto`, `Categoria`, `Descrição`, `Valor`) 
+VALUES (101, 'Eletrônicos', 'Smartphone X1', '1999.99');
+
+-- Atualizar o preço de um produto existente
+UPDATE `mydb`.`Produto` 
+SET `Valor` = '1899.99' 
+WHERE `idProduto` = 101;
+
+-- Verificar as alterações antes de confirmar
+SELECT * FROM `mydb`.`Produto` WHERE `idProduto` = 101;
+
+-- Se tudo estiver correto, confirmar as mudanças
+COMMIT;
+
+-- Caso haja algum problema, pode-se usar ROLLBACK
+-- ROLLBACK;
+
+-- Reabilitar o autocommit
+SET autocommit = 1;
+```
+
+Esta solução demonstra o controle total sobre as modificações no banco de dados, permitindo verificar as alterações antes de confirmá-las definitivamente ou revertê-las completamente se necessário.
+
+### PARTE 2 - TRANSAÇÃO COM PROCEDURE
+
+#### Solução para Transação com Procedure e Tratamento de Erros
+
+A procedure a seguir implementa uma transação com verificação de erro e uso de SAVEPOINT para rollback parcial:
+
+```sql
+DELIMITER //
+
+CREATE PROCEDURE AtualizarEstoque(
+    IN p_idProduto INT,
+    IN p_idEstoque INT,
+    IN p_novaQuantidade INT
+)
+BEGIN
+    -- Variável para controle de erro
+    DECLARE erro_ocorreu BOOLEAN DEFAULT FALSE;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET erro_ocorreu = TRUE;
+
+    -- Iniciar transação
+    START TRANSACTION;
+    
+    -- Verificar se o produto existe
+    IF NOT EXISTS (SELECT 1 FROM `mydb`.`Produto` WHERE `idProduto` = p_idProduto) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Produto não encontrado';
+        ROLLBACK;
+    ELSE
+        -- Savepoint antes de atualizações
+        SAVEPOINT antes_atualizacao;
+        
+        -- Atualizar estoque
+        UPDATE `mydb`.`Estoque_has_Produto` 
+        SET `Quantidade` = p_novaQuantidade 
+        WHERE `Produto_idProduto` = p_idProduto AND `Estoque_idEstoque` = p_idEstoque;
+        
+        -- Verificar se houve erro na atualização
+        IF erro_ocorreu THEN
+            -- Reverter para o savepoint
+            ROLLBACK TO antes_atualizacao;
+            -- Tentar inserir um novo registro caso não exista
+            INSERT INTO `mydb`.`Estoque_has_Produto` (`Estoque_idEstoque`, `Produto_idProduto`, `Quantidade`)
+            VALUES (p_idEstoque, p_idProduto, p_novaQuantidade);
+            
+            -- Verificar novamente se houve erro
+            IF erro_ocorreu THEN
+                ROLLBACK;
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Falha ao atualizar ou inserir no estoque';
+            ELSE
+                COMMIT;
+            END IF;
+        ELSE
+            -- Se não houve erro, confirma a transação
+            COMMIT;
+        END IF;
+    END IF;
+END //
+
+DELIMITER ;
+```
+
+Esta procedure demonstra um cenário real onde atualizamos o estoque de um produto com tratamento de erros. Se o produto não existe no estoque específico, tenta-se inserir um novo registro. Em caso de falha, toda a operação é revertida.
+
+### PARTE 3 – BACKUP E RECOVERY
+
+#### Solução para Backup e Recovery
+
+Abaixo estão os comandos para realizar backup e recovery do banco de dados e-commerce utilizando o mysqldump:
+
+**1. Backup completo do banco de dados:**
+
+```bash
+# Backup da estrutura e dados completos
+mysqldump -u root -p mydb > backup_ecommerce_completo.sql
+```
+
+**2. Backup apenas da estrutura:**
+
+```bash
+# Backup apenas da estrutura (sem dados)
+mysqldump -u root -p --no-data mydb > backup_ecommerce_estrutura.sql
+```
+
+**3. Backup incluindo procedures, funções, triggers e eventos:**
+
+```bash
+# Backup incluindo rotinas armazenadas
+mysqldump -u root -p --routines --events --triggers mydb > backup_ecommerce_completo_com_rotinas.sql
+```
+
+**4. Backup de tabelas específicas:**
+
+```bash
+# Backup apenas das tabelas de clientes e pedidos
+mysqldump -u root -p mydb Cliente Pedido > backup_clientes_pedidos.sql
+```
+
+**5. Recovery (restauração) do banco de dados:**
+
+```bash
+# Criação da base de dados (se necessário)
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS mydb"
+
+# Restauração do backup
+mysql -u root -p mydb < backup_ecommerce_completo.sql
+```
+
+**6. Backup de múltiplos bancos de dados:**
+
+```bash
+# Backup de vários bancos de dados
+mysqldump -u root -p --databases mydb sistema_vendas > backup_multiplos_bancos.sql
+```
+
+**7. Backup compactado para economizar espaço:**
+
+```bash
+# Backup compactado com gzip
+mysqldump -u root -p mydb | gzip > backup_ecommerce.sql.gz
+
+# Restauração de backup compactado
+gunzip < backup_ecommerce.sql.gz | mysql -u root -p mydb
+```
+
+Estas soluções de backup garantem que os dados e a estrutura do banco de dados e-commerce estejam protegidos contra perdas e possam ser facilmente restaurados quando necessário.
+
